@@ -74,6 +74,9 @@ export default {
       ]
     }
   },
+  mounted () {
+    this.draw()
+  },
   methods: {
     addPoint () {
       this.points.push({ x: parseInt(this.x), y: parseInt(this.y) })

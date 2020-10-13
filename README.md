@@ -1,4 +1,4 @@
-# RTU Image Processing
+# RTU
 
 #### How to setup
 
