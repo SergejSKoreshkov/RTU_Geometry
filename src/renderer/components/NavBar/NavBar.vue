@@ -28,7 +28,8 @@ export default {
   data () {
     return {
       routes: [
-        { path: '/', name: 'Lab 1' }
+        { path: '/', name: 'Lab 1' },
+        { path: '/lab2', name: 'Lab 2' }
       ],
       activePath: this.$router.currentRoute.path
     }
