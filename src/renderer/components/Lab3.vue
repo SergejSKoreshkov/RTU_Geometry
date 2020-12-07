@@ -52,6 +52,19 @@
             Use cube x,y,z in [-50;50]
           </label>
         </div>
+
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="bezierSelect" :value="bezier1" v-model="bezier" @change="this.draw">
+          <label class="form-check-label" for="cubeSelect">
+            Use bezier 1 (long line)
+          </label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="bezierSelect" :value="bezier2" v-model="bezier" @change="this.draw">
+          <label class="form-check-label" for="cubeSelect">
+            Use bezier 2 (short line)
+          </label>
+        </div>
       </div>
     </div>
     <div class="row">
@@ -163,10 +176,16 @@ export default {
       aY: 0,
       aZ: 0,
       type: 'isometric',
-      bezier: [
-        [0, 0, 0],
-        [50, 90, 80],
-        [150, 140, 160]
+      bezier: [],
+      bezier1: [
+        [[0, 0, 0], [50, 90, 80]],
+        [[50, 90, 80], [150, 140, 160]],
+        [[150, 140, 160], [0, 0, 0]]
+      ],
+      bezier2: [
+        [[50, 50, 50], [50, 150, 150]],
+        [[50, 150, 150], [150, 50, 150]],
+        [[150, 50, 150], [50, 50, 50]]
       ],
       cube: [],
       cube1: [
@@ -283,9 +302,9 @@ export default {
         let y = 0
         let z = 0
         for (let i = 0; i < pointsCount; i++) {
-          x = x + B(i, pointsCount - 1, t) * this.bezier[i][0]
-          y = y + B(i, pointsCount - 1, t) * this.bezier[i][1]
-          z = z + B(i, pointsCount - 1, t) * this.bezier[i][2]
+          x = x + B(i, pointsCount - 1, t) * this.bezier[i][0][0]
+          y = y + B(i, pointsCount - 1, t) * this.bezier[i][0][1]
+          z = z + B(i, pointsCount - 1, t) * this.bezier[i][0][2]
         }
         x = Math.round(x)
         y = Math.round(y)
@@ -304,6 +323,31 @@ export default {
         }
         t += 0.01
       }
+
+      this.bezier.forEach((line, index, arr) => {
+        if (index === arr.length - 1) return
+        const change = [line[0][0] - line[1][0], line[0][1] - line[1][1], line[0][2] - line[1][2]]
+        let t = 0.0
+        while (t < 1) {
+          let points = [...line[0]]
+          points = points.map((point, index) => {
+            return point - change[index] * t
+          })
+          points = rotateX([...points], this.aX)
+          points = rotateY(points, this.aY)
+          points = rotateZ(points, this.aZ)
+          points = obliqueProjection(points, scale, angle)
+          const x = Math.round(points[0])
+          const y = Math.round(points[1])
+          if (x >= 0 && y >= 0 && x < 200 && y < 200) {
+            buffer.data[(y * 200 + x) * 4] = 20
+            buffer.data[(y * 200 + x) * 4 + 1] = 100
+            buffer.data[(y * 200 + x) * 4 + 2] = 80
+            buffer.data[(y * 200 + x) * 4 + 3] = 255
+          }
+          t += 0.01
+        }
+      })
 
       ctx.putImageData(buffer, 0, 0)
     },
@@ -345,9 +389,9 @@ export default {
         let y = 0
         let z = 0
         for (let i = 0; i < pointsCount; i++) {
-          x = x + B(i, pointsCount - 1, t) * this.bezier[i][0]
-          y = y + B(i, pointsCount - 1, t) * this.bezier[i][1]
-          z = z + B(i, pointsCount - 1, t) * this.bezier[i][2]
+          x = x + B(i, pointsCount - 1, t) * this.bezier[i][0][0]
+          y = y + B(i, pointsCount - 1, t) * this.bezier[i][0][1]
+          z = z + B(i, pointsCount - 1, t) * this.bezier[i][0][2]
         }
         x = Math.round(x)
         y = Math.round(y)
@@ -366,6 +410,31 @@ export default {
         }
         t += 0.01
       }
+
+      this.bezier.forEach((line, index, arr) => {
+        if (index === arr.length - 1) return
+        const change = [line[0][0] - line[1][0], line[0][1] - line[1][1], line[0][2] - line[1][2]]
+        let t = 0.0
+        while (t < 1) {
+          let points = [...line[0]]
+          points = points.map((point, index) => {
+            return point - change[index] * t
+          })
+          points = rotateX(points, this.aX)
+          points = rotateY(points, this.aY)
+          points = rotateZ(points, this.aZ)
+          let [x, y] = projectIsometric(points)
+          x = Math.round(x)
+          y = Math.round(y)
+          if (x >= 0 && y >= 0 && x < 200 && y < 200) {
+            buffer.data[(y * 200 + x) * 4] = 20
+            buffer.data[(y * 200 + x) * 4 + 1] = 100
+            buffer.data[(y * 200 + x) * 4 + 2] = 80
+            buffer.data[(y * 200 + x) * 4 + 3] = 255
+          }
+          t += 0.01
+        }
+      })
 
       ctx.putImageData(buffer, 0, 0)
     },
@@ -406,9 +475,9 @@ export default {
         let y = 0
         let z = 0
         for (let i = 0; i < pointsCount; i++) {
-          x = x + B(i, pointsCount - 1, t) * this.bezier[i][0]
-          y = y + B(i, pointsCount - 1, t) * this.bezier[i][1]
-          z = z + B(i, pointsCount - 1, t) * this.bezier[i][2]
+          x = x + B(i, pointsCount - 1, t) * this.bezier[i][0][0]
+          y = y + B(i, pointsCount - 1, t) * this.bezier[i][0][1]
+          z = z + B(i, pointsCount - 1, t) * this.bezier[i][0][2]
         }
         x = Math.round(x)
         y = Math.round(y)
@@ -426,6 +495,30 @@ export default {
         }
         t += 0.01
       }
+
+      this.bezier.forEach((line, index, arr) => {
+        if (index === arr.length - 1) return
+        const change = [line[0][0] - line[1][0], line[0][1] - line[1][1], line[0][2] - line[1][2]]
+        let t = 0.0
+        while (t < 1) {
+          let points = [...line[0]]
+          points = points.map((point, index) => {
+            return point - change[index] * t
+          })
+          points = rotateX([points[0], points[1], points[2]], this.aX)
+          points = rotateY(points, this.aY)
+          points = rotateZ(points, this.aZ)
+          const x = Math.trunc(this.dz * (points[0] - 100) / (points[2] + this.dz)) + 100
+          const y = Math.trunc(this.dz * (points[1] - 100) / (points[2] + this.dz)) + 100
+          if (x >= 0 && y >= 0 && x < 200 && y < 200) {
+            buffer.data[(y * 200 + x) * 4] = 20
+            buffer.data[(y * 200 + x) * 4 + 1] = 100
+            buffer.data[(y * 200 + x) * 4 + 2] = 80
+            buffer.data[(y * 200 + x) * 4 + 3] = 255
+          }
+          t += 0.01
+        }
+      })
 
       ctx.putImageData(buffer, 0, 0)
     }
