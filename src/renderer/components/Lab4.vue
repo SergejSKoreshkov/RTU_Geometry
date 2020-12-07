@@ -1,5 +1,5 @@
 <template>
-  <div class="lab3">
+  <div class="lab4">
     <h4>Internal space x, y, z is in interval [-100;100]</h4>
     <h5>[-1;1] mapped to [-100;100]</h5>
     <h6 style="color: blue">Use 'q' and 'e' keys to change dZ. dZ: {{ dz }}</h6>
@@ -18,18 +18,6 @@
           <input class="form-check-input" type="radio" name="type" value="onepoint" v-model="type" @change="this.draw">
           <label class="form-check-label" for="type">
             One point perspective
-          </label>
-        </div>
-        <div class="form-check">
-          <input class="form-check-input" type="radio" name="type" value="cabinet" v-model="type" @change="this.draw">
-          <label class="form-check-label" for="type">
-            Cabinet projection
-          </label>
-        </div>
-        <div class="form-check">
-          <input class="form-check-input" type="radio" name="type" value="cavalier" v-model="type" @change="this.draw">
-          <label class="form-check-label" for="type">
-            Cavalier projection
           </label>
         </div>
       </div>
@@ -145,17 +133,8 @@ const projectIsometric = (point) => {
   return result._data.map(el => el[0] + 100)
 }
 
-const atan2 = Math.atan(2)
-
-const obliqueProjection = (point, scale, angle) => {
-  point = point.map(el => el - 100)
-  const x = point[0] + scale * Math.cos(angle) * point[2] + 100
-  const y = point[1] + scale * Math.sin(angle) * point[2] + 100
-  return [x, y]
-}
-
 export default {
-  name: 'lab3',
+  name: 'lab4',
   data () {
     return {
       dz: 200,
@@ -240,72 +219,8 @@ export default {
     draw () {
       switch (this.type) {
         case 'isometric': this.drawIsometricProjection(); return
-        case 'onepoint': this.drawOnePointPerspective(); return
-        case 'cabinet': this.drawObliqueProjection(1 / 2, -atan2); return
-        case 'cavalier': this.drawObliqueProjection(1, -0.785398)
+        case 'onepoint': this.drawOnePointPerspective()
       }
-    },
-    drawObliqueProjection (scale, angle) {
-      const canvas = this.$refs.canvas
-      document.addEventListener('keypress', this.onKey)
-      const ctx = canvas.getContext('2d')
-      ctx.fillStyle = '#fff'
-      ctx.fillRect(0, 0, 200, 200)
-      const buffer = ctx.getImageData(0, 0, 200, 200)
-
-      this.cube.forEach(line => {
-        const changeAxis = math.add(line[0], line[1].map(el => -el)).findIndex(el => el !== 0)
-        const change = line[1][changeAxis] - line[0][changeAxis]
-        let t = 0.0
-        while (t < 1) {
-          let points = [...line[0]]
-          points[changeAxis] = line[0][changeAxis] + t * change
-          points = rotateX(points, this.aX)
-          points = rotateY(points, this.aY)
-          points = rotateZ(points, this.aZ)
-          let [x, y] = obliqueProjection(points, scale, angle)
-          x = Math.round(x)
-          y = Math.round(y)
-          if (x >= 0 && y >= 0 && x < 200 && y < 200) {
-            buffer.data[(y * 200 + x) * 4] = 20
-            buffer.data[(y * 200 + x) * 4 + 1] = 100
-            buffer.data[(y * 200 + x) * 4 + 2] = 80
-            buffer.data[(y * 200 + x) * 4 + 3] = 255
-          }
-          t += 0.01
-        }
-      })
-
-      const pointsCount = this.bezier.length
-      let t = 0
-      while (t < 1) {
-        let x = 0
-        let y = 0
-        let z = 0
-        for (let i = 0; i < pointsCount; i++) {
-          x = x + B(i, pointsCount - 1, t) * this.bezier[i][0]
-          y = y + B(i, pointsCount - 1, t) * this.bezier[i][1]
-          z = z + B(i, pointsCount - 1, t) * this.bezier[i][2]
-        }
-        x = Math.round(x)
-        y = Math.round(y)
-        z = Math.round(z)
-        let points = rotateX([x, y, z], this.aX)
-        points = rotateY(points, this.aY)
-        points = rotateZ(points, this.aZ)
-        points = obliqueProjection(points, scale, angle)
-        x = Math.round(points[0])
-        y = Math.round(points[1])
-        if (x >= 0 && y >= 0 && x < 200 && y < 200) {
-          buffer.data[(y * 200 + x) * 4] = 20
-          buffer.data[(y * 200 + x) * 4 + 1] = 100
-          buffer.data[(y * 200 + x) * 4 + 2] = 80
-          buffer.data[(y * 200 + x) * 4 + 3] = 255
-        }
-        t += 0.01
-      }
-
-      ctx.putImageData(buffer, 0, 0)
     },
     drawIsometricProjection () {
       const canvas = this.$refs.canvas
