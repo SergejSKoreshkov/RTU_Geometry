@@ -275,6 +275,14 @@ export default {
     this.cube = this.cube1
     this.draw()
   },
+  watch: {
+    bicubic () {
+      this.draw()
+    },
+    bezier () {
+      this.draw()
+    }
+  },
   methods: {
     onKey (e) {
       switch (e.key) {
