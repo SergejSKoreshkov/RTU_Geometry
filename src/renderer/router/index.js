@@ -26,6 +26,11 @@ export default new Router({
       component: require('@/components/Lab4').default
     },
     {
+      path: '/lab5',
+      name: 'lab5',
+      component: require('@/components/Lab5').default
+    },
+    {
       path: '*',
       redirect: '/'
     }
