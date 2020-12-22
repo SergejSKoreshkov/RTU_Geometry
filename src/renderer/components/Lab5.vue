@@ -28,7 +28,8 @@
             </div>
             </div>
             <button class="btn btn-primary" @click="points = []; draw()">Clear all</button>
-            <button class="btn btn-primary" @click="breakLine">Break line</button>
+            <button class="btn btn-primary" @click="breakLine(); draw()">Break line</button>
+            <button class="btn btn-primary" @click="isFast = !isFast; draw()">{{ isFast ? 'Switch to Jarvis' : 'Switch to Fast Shell'}}</button>
             <hr>
             <ul class="list-group">
               <li v-for="(point, index) in points" :key="point.x.toString() + point.y.toString()" class="list-group-item">
@@ -64,7 +65,8 @@ export default {
       x: 0,
       y: 0,
       points: [],
-      pointsCount: 16
+      pointsCount: 16,
+      isFast: false
     }
   },
   mounted () {
@@ -73,6 +75,7 @@ export default {
   methods: {
     addPoint () {
       this.points.push({ x: parseInt(this.x), y: parseInt(this.y) })
+      this.draw()
     },
     addPointWithClick (event) {
       const { width, height } = event.target
@@ -105,76 +108,110 @@ export default {
         return acc
       }, [[]])
       ctx.putImageData(buffer, 0, 0)
-      points.forEach((pointSet, index, arr) => {
+      points.forEach(async (pointSet, index, arr) => {
         pointSet.forEach(({ x, y }) => {
           ctx.beginPath()
           ctx.arc(x, y, 2, 0, 2 * Math.PI)
           ctx.stroke()
         })
 
-        setTimeout(() => {
+        // Jarvis
+        if (!this.isFast) {
+          const fns = [
+            [Math.atan2, (a, b) => a.y - b.y || a.x - b.x],
+            [(x, y) => Math.atan2(-x, -y), (a, b) => b.y - a.y || b.x - a.x]
+          ]
+          fns.forEach(async ([angleFn, sortFn]) => {
+            const mappedPoints = pointSet.map(({ x, y }) => ({ x, y: 300 - y }))
+            if (mappedPoints.length < 3) return
+            let sorted = mappedPoints.sort(sortFn)
+            let [pointNow, ...restPoints] = sorted
+            const lastPoint = {...restPoints[restPoints.length - 1]}
+            while (!(pointNow.x === lastPoint.x && pointNow.y === lastPoint.y)) {
+              ctx.beginPath()
+              ctx.moveTo(pointNow.x, 300 - pointNow.y)
+              restPoints = restPoints.map(({ x, y }) => {
+                const ix = x - pointNow.x
+                const iy = y - pointNow.y
+                let angle = angleFn(iy, ix)
+                if (angle < 0) angle = 2 * Math.PI + angle
+                return { x, y, a: angle }
+              }).sort((a, b) => a.a - b.a)
+              pointNow = restPoints.splice(0, 1)[0]
+              ctx.lineTo(pointNow.x, 300 - pointNow.y)
+              ctx.stroke()
+              await new Promise(resolve => setTimeout(resolve, 100))
+            }
+          })
+        } else { // Fast algo
           const mappedPoints = pointSet.map(({ x, y }) => ({ x, y: 300 - y }))
-          // Jarvis
           if (mappedPoints.length < 3) return
-          let sorted = mappedPoints.sort((a, b) => a.y - b.y)
-          // let direction = 'y'
-          // if (sorted[0].y === sorted[1].y) {
-          // sorted = pointSet.sort((a, b) => a.x - b.x)
-          // direction = 'x'
-          // }
-          let [pointNow, ...restPoints] = sorted
-          const lastPoint = {...restPoints[restPoints.length - 1]}
+          const sorted = mappedPoints.sort((a, b) => a.x - b.x)
+          const left = {...sorted[0]}
+          const right = {...sorted[sorted.length - 1]}
 
-          while (pointNow.x !== lastPoint.x && pointNow.y !== lastPoint.y) {
+          let linesPoints = [[left, right]]
+          while (linesPoints.length !== 0) {
+            const [[left, right]] = [...linesPoints.splice(0, 1)]
             ctx.beginPath()
-            ctx.moveTo(pointNow.x, 300 - pointNow.y)
-            restPoints = restPoints.map(({ x, y }) => {
-              const ix = x - pointNow.x
-              const iy = y - pointNow.y
-              let angle = Math.atan2(iy, ix)
-              if (angle < 0) angle = 2 * Math.PI + angle
-              console.log(ix, iy, angle)
-              return { x, y, a: angle }
-            }).sort((a, b) => a.a - b.a)
-            pointNow = restPoints.splice(0, 1)[0]
-            ctx.lineTo(pointNow.x, 300 - pointNow.y)
+            ctx.moveTo(left.x, 300 - left.y)
+            ctx.lineTo(right.x, 300 - right.y)
             ctx.stroke()
+            const k = (right.y - left.y) / (right.x - left.x)
+            const b = -k * left.x + left.y
+            console.log(k, b)
+            const line = (x) => k * x + b
+            const [ bestPoint ] = mappedPoints
+              .filter(p => p.y > line(p.x))
+              .map(p => ({
+                distance: Math.abs(k * p.x - p.y + b) / Math.sqrt(Math.pow(k, 2) + 1),
+                ...p
+              }))
+              .sort((a, b) => b.distance - a.distance)
+
+            if (bestPoint && bestPoint.distance > 0.5) {
+              const crossX = (-1 * (-1 * bestPoint.x - k * bestPoint.y) - k * b) / (Math.pow(k, 2) + 1)
+              ctx.beginPath()
+              ctx.moveTo(crossX, 300 - line(crossX))
+              ctx.lineTo(bestPoint.x, 300 - bestPoint.y)
+              ctx.stroke()
+              linesPoints.push([left, bestPoint])
+              linesPoints.push([bestPoint, right])
+            }
+            await new Promise(resolve => setTimeout(resolve, 100))
           }
-        }, 0)
 
-        setTimeout(() => {
-          const mappedPoints = pointSet.map(({ x, y }) => ({ x, y: 300 - y }))
-          // Jarvis
-          if (mappedPoints.length < 3) return
-          let sorted = mappedPoints.sort((a, b) => b.y - a.y)
-          // let direction = 'y'
-          // if (sorted[0].y === sorted[1].y) {
-          // sorted = pointSet.sort((a, b) => a.x - b.x)
-          // direction = 'x'
-          // }
-          let [pointNow, ...restPoints] = sorted
-          const lastPoint = {...restPoints[restPoints.length - 1]}
-
-          while (pointNow.x !== lastPoint.x && pointNow.y !== lastPoint.y) {
+          linesPoints = [[left, right]]
+          while (linesPoints.length !== 0) {
+            const [[left, right]] = [...linesPoints.splice(0, 1)]
             ctx.beginPath()
-            ctx.moveTo(pointNow.x, 300 - pointNow.y)
-            restPoints = restPoints.map(({ x, y }) => {
-              const ix = x - pointNow.x
-              const iy = y - pointNow.y
-              let angle = Math.atan2(-iy, -ix)
-              if (angle < 0) angle = 2 * Math.PI + angle
-              // if (iy === 0 && x >= 0) angle = 0
-              // if (iy === 0 && x < 0) angle = Math.PI
-              // if (iy >= 0 && x === 0) angle = Math.PI / 2
-              // if (iy < 0 && x === 0) angle = 3 * Math.PI / 2
-              console.log(ix, iy, angle)
-              return { x, y, a: angle }
-            }).sort((a, b) => a.a - b.a)
-            pointNow = restPoints.splice(0, 1)[0]
-            ctx.lineTo(pointNow.x, 300 - pointNow.y)
+            ctx.moveTo(left.x, 300 - left.y)
+            ctx.lineTo(right.x, 300 - right.y)
             ctx.stroke()
+            const k = (right.y - left.y) / (right.x - left.x)
+            const b = -k * left.x + left.y
+            console.log(k, b)
+            const line = (x) => k * x + b
+            const [ bestPoint ] = mappedPoints
+              .filter(p => p.y < line(p.x))
+              .map(p => ({
+                distance: Math.abs(k * p.x - p.y + b) / Math.sqrt(Math.pow(k, 2) + 1),
+                ...p
+              }))
+              .sort((a, b) => b.distance - a.distance)
+
+            if (bestPoint && bestPoint.distance > 0.5) {
+              const crossX = (-1 * (-1 * bestPoint.x - k * bestPoint.y) - k * b) / (Math.pow(k, 2) + 1)
+              ctx.beginPath()
+              ctx.moveTo(crossX, 300 - line(crossX))
+              ctx.lineTo(bestPoint.x, 300 - bestPoint.y)
+              ctx.stroke()
+              linesPoints.push([left, bestPoint])
+              linesPoints.push([bestPoint, right])
+            }
+            await new Promise(resolve => setTimeout(resolve, 100))
           }
-        }, 0)
+        }
       })
     }
   }
