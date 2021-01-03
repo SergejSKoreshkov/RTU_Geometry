@@ -32,7 +32,8 @@ export default {
         { path: '/lab2', name: 'Lab 2' },
         { path: '/lab3', name: 'Lab 3' },
         { path: '/lab4', name: 'Lab 4' },
-        { path: '/lab5', name: 'Lab 5' }
+        { path: '/lab5', name: 'Lab 5' },
+        { path: '/lab6', name: 'Lab 6' }
       ],
       activePath: this.$router.currentRoute.path
     }

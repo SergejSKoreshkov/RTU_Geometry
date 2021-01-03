@@ -1,5 +1,5 @@
 <template>
-  <div class="lab5">
+  <div class="lab6">
     <div class="row">
       <div class="col-6">
         <canvas @click="addPointWithClick" @dblclick="breakLine" class="hover" ref="canvas" width="300" height="300"></canvas>
@@ -29,7 +29,7 @@
             </div>
             <button class="btn btn-primary" @click="points = []; draw()">Clear all</button>
             <button class="btn btn-primary" @click="breakLine(); draw()">Break line</button>
-            <button class="btn btn-primary" @click="isFast = !isFast; draw()">{{ isFast ? 'Switch to Jarvis' : 'Switch to Fast'}}</button>
+            <button class="btn btn-primary" @click="isDaB = !isDaB; draw()">{{ isDaB ? 'Switch to Departments and Boards' : 'Switch to Direct Development'}}</button>
             <hr>
             <ul class="list-group">
               <li v-for="(point, index) in points" :key="point.x.toString() + point.y.toString()" class="list-group-item">
@@ -59,14 +59,14 @@
 // const math = require('mathjs')
 
 export default {
-  name: 'lab5',
+  name: 'lab6',
   data () {
     return {
       x: 0,
       y: 0,
       points: [],
       pointsCount: 16,
-      isFast: false
+      isDaB: false
     }
   },
   mounted () {
@@ -115,102 +115,81 @@ export default {
           ctx.stroke()
         })
 
-        // Jarvis
-        if (!this.isFast) {
-          const fns = [
-            [Math.atan2, (a, b) => a.y - b.y || a.x - b.x],
-            [(x, y) => Math.atan2(-x, -y), (a, b) => b.y - a.y || b.x - a.x]
-          ]
-          fns.forEach(async ([angleFn, sortFn]) => {
-            const mappedPoints = pointSet.map(({ x, y }) => ({ x, y: 300 - y }))
-            if (mappedPoints.length < 3) return
-            let sorted = mappedPoints.sort(sortFn)
-            let [pointNow, ...restPoints] = sorted
-            const lastPoint = {...restPoints[restPoints.length - 1]}
-            while (!(pointNow.x === lastPoint.x && pointNow.y === lastPoint.y)) {
-              ctx.beginPath()
-              ctx.moveTo(pointNow.x, 300 - pointNow.y)
-              restPoints = restPoints.map(({ x, y }) => {
-                const ix = x - pointNow.x
-                const iy = y - pointNow.y
-                let angle = angleFn(iy, ix)
-                if (angle < 0) angle = 2 * Math.PI + angle
-                return { x, y, a: angle }
-              }).sort((a, b) => a.a - b.a)
-              pointNow = restPoints.splice(0, 1)[0]
-              ctx.lineTo(pointNow.x, 300 - pointNow.y)
-              ctx.stroke()
-              await new Promise(resolve => setTimeout(resolve, 100))
-            }
-          })
-        } else { // Fast algo
+        // Direct Development
+        if (!this.isDaB) {
+          // Step 1
+          const startPointsSet = [[]]
           const mappedPoints = pointSet.map(({ x, y }) => ({ x, y: 300 - y }))
           if (mappedPoints.length < 3) return
-          const sorted = mappedPoints.sort((a, b) => a.x - b.x)
-          const left = {...sorted[0]}
-          const right = {...sorted[sorted.length - 1]}
+          let sorted = mappedPoints.sort((a, b) => a.y - b.y || a.x - b.x)
+          let [pointNow, ...restPoints] = sorted
+          startPointsSet[0].push({...pointNow}) // Point one
 
-          let linesPoints = [[left, right]]
-          while (linesPoints.length !== 0) {
-            const [[left, right]] = [...linesPoints.splice(0, 1)]
-            ctx.beginPath()
-            ctx.moveTo(left.x, 300 - left.y)
-            ctx.lineTo(right.x, 300 - right.y)
-            ctx.stroke()
-            const k = (right.y - left.y) / (right.x - left.x)
-            const b = -k * left.x + left.y
-            console.log(k, b)
-            const line = (x) => k * x + b
-            const [ bestPoint ] = mappedPoints
-              .filter(p => p.y > line(p.x))
-              .map(p => ({
-                distance: Math.abs(k * p.x - p.y + b) / Math.sqrt(Math.pow(k, 2) + 1),
-                ...p
-              }))
-              .sort((a, b) => b.distance - a.distance)
+          restPoints = restPoints.map(({ x, y }) => {
+            const ix = x - pointNow.x
+            const iy = y - pointNow.y
+            let angle = Math.atan2(iy, ix)
+            if (angle < 0) angle = 2 * Math.PI + angle
+            return { x, y, a: angle }
+          }).sort((a, b) => a.a - b.a)
+          pointNow = restPoints.splice(0, 1)[0]
+          startPointsSet[0].push({...pointNow}) // Point two
+          // startPointsSet
 
-            if (bestPoint && bestPoint.distance > 0.5) {
-              const crossX = (-1 * (-1 * bestPoint.x - k * bestPoint.y) - k * b) / (Math.pow(k, 2) + 1)
-              ctx.beginPath()
-              ctx.moveTo(crossX, 300 - line(crossX))
-              ctx.lineTo(bestPoint.x, 300 - bestPoint.y)
-              ctx.stroke()
-              linesPoints.push([left, bestPoint])
-              linesPoints.push([bestPoint, right])
+          const ignorePoints = [...startPointsSet[0]]
+          while (true) {
+            console.log('START POINTS SET', startPointsSet)
+            // Step 2
+            const triangPoints = mappedPoints.filter(point => {
+              return ignorePoints.every(ignorePoint => {
+                return point.x !== ignorePoint.x && point.y !== ignorePoint.y
+              })
+            })
+            console.log('STEP 2', triangPoints)
+
+            if (triangPoints.length === 0) {
+              console.log('END', triangPoints)
+              break
             }
-            await new Promise(resolve => setTimeout(resolve, 100))
-          }
 
-          linesPoints = [[left, right]]
-          while (linesPoints.length !== 0) {
-            const [[left, right]] = [...linesPoints.splice(0, 1)]
+            // Step 3
+            const pointsWithAngle = triangPoints.map(point => {
+              const a = Math.sqrt(Math.pow(point.x - startPoints[0].x, 2) + Math.pow(point.y - startPoints[0].y, 2))
+              const b = Math.sqrt(Math.pow(point.x - startPoints[1].x, 2) + Math.pow(point.y - startPoints[1].y, 2))
+              const c = Math.sqrt(Math.pow(startPoints[0].x - startPoints[1].x, 2) + Math.pow(startPoints[0].y - startPoints[1].y, 2))
+
+              const angle = Math.acos((Math.pow(a, 2) + Math.pow(b, 2) - Math.pow(c, 2)) / (2 * a * b))
+              return { ...point, a: angle }
+            }).sort((a, b) => b.a - a.a)
+
+            const bestPoint = pointsWithAngle[0]
+            ignorePoints.push(bestPoint)
+            console.log('STEP 3', bestPoint)
+            // bestPoint
+
+            // Step 4
+            startPointsSet.push([bestPoint, startPoints[0]])
+            startPointsSet.push([bestPoint, startPoints[1]])
+            index++
+            console.log('STEP 4', startPointsSet)
+
+            // Draw
             ctx.beginPath()
-            ctx.moveTo(left.x, 300 - left.y)
-            ctx.lineTo(right.x, 300 - right.y)
+            ctx.strokeStyle = '#000'
+            ctx.moveTo(bestPoint.x, 300 - bestPoint.y)
+            ctx.lineTo(startPoints[0].x, 300 - startPoints[0].y)
+            ctx.moveTo(bestPoint.x, 300 - bestPoint.y)
+            ctx.lineTo(startPoints[1].x, 300 - startPoints[1].y)
             ctx.stroke()
-            const k = (right.y - left.y) / (right.x - left.x)
-            const b = -k * left.x + left.y
-            console.log(k, b)
-            const line = (x) => k * x + b
-            const [ bestPoint ] = mappedPoints
-              .filter(p => p.y < line(p.x))
-              .map(p => ({
-                distance: Math.abs(k * p.x - p.y + b) / Math.sqrt(Math.pow(k, 2) + 1),
-                ...p
-              }))
-              .sort((a, b) => b.distance - a.distance)
+            ctx.beginPath()
+            ctx.strokeStyle = '#ff0000'
+            ctx.moveTo(startPoints[1].x, 300 - startPoints[1].y)
+            ctx.lineTo(startPoints[0].x, 300 - startPoints[0].y)
+            ctx.stroke()
 
-            if (bestPoint && bestPoint.distance > 0.5) {
-              const crossX = (-1 * (-1 * bestPoint.x - k * bestPoint.y) - k * b) / (Math.pow(k, 2) + 1)
-              ctx.beginPath()
-              ctx.moveTo(crossX, 300 - line(crossX))
-              ctx.lineTo(bestPoint.x, 300 - bestPoint.y)
-              ctx.stroke()
-              linesPoints.push([left, bestPoint])
-              linesPoints.push([bestPoint, right])
-            }
-            await new Promise(resolve => setTimeout(resolve, 100))
+            await new Promise(resolve => setTimeout(resolve, 1000))
           }
+        } else { // Departments and Boards
         }
       })
     }
