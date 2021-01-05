@@ -33,7 +33,7 @@ export default new Router({
     {
       path: '/lab6',
       name: 'lab6',
-      component: require('@/components/Lab6').default
+      component: require('@/components/Lab6v2').default
     },
     {
       path: '*',
