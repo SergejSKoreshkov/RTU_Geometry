@@ -24,12 +24,12 @@
             </div>
             <input type="number" class="form-control" v-model="pointsCount">
             <div class="input-group-append">
-              <button class="btn btn-outline-secondary" type="button" @click="points = new Array(parseInt(pointsCount)).fill(0).map(el => ({ x: Math.trunc(Math.random() * 200) + 50, y: Math.trunc(Math.random() * 200) + 50})); draw()">Spawn</button>
+              <button class="btn btn-outline-secondary" type="button" @click="points = new Array(parseInt(pointsCount)).fill(0).map(el => ({ x: Math.trunc(Math.random() * 300), y: Math.trunc(Math.random() * 300)})); draw()">Spawn</button>
             </div>
             </div>
             <button class="btn btn-primary" @click="points = []; draw()">Clear all</button>
             <button class="btn btn-primary" @click="breakLine(); draw()">Break line</button>
-            <button class="btn btn-primary" @click="isDaB = !isDaB; draw()">{{ isDaB ? 'Switch to Departments and Boards' : 'Switch to Incremental'}}</button>
+            <button class="btn btn-primary" @click="isDaC = !isDaC; draw()">{{ !isDaC ? 'Switch to Divide and Conquer' : 'Switch to Direct Development'}}</button>
             <hr>
             <ul class="list-group">
               <li v-for="(point, index) in points" :key="point.x.toString() + point.y.toString()" class="list-group-item">
@@ -58,13 +58,33 @@
 <script>
 // const math = require('mathjs')
 
-function ptInTriangle (p, p0, p1, p2) {
-  const A = 1 / 2 * (-p1.y * p2.x + p0.y * (-p1.x + p2.x) + p0.x * (p1.y - p2.y) + p1.x * p2.y)
-  const sign = A < 0 ? -1 : 1
-  const s = (p0.y * p2.x - p0.x * p2.y + (p2.y - p0.y) * p.x + (p0.x - p2.x) * p.y) * sign
-  const t = (p0.x * p1.y - p0.y * p1.x + (p0.y - p1.y) * p.x + (p1.x - p0.x) * p.y) * sign
+function drawPoints (ctx, points, color, isMapped) {
+  points.forEach(({ x, y }) => {
+    ctx.strokeStyle = color
+    ctx.beginPath()
+    ctx.arc(x, isMapped ? 300 - y : y, 2, 0, 2 * Math.PI)
+    ctx.stroke()
+  })
+}
 
-  return s > 0 && t > 0 && (s + t) < 2 * A * sign
+function drawLine (ctx, line, color) {
+  ctx.beginPath()
+  ctx.strokeStyle = color
+  ctx.moveTo(line[0].x, 300 - line[0].y)
+  ctx.lineTo(line[1].x, 300 - line[1].y)
+  ctx.stroke()
+}
+
+function drawTriagles (ctx, triangles, color) {
+  triangles.forEach(t => {
+    ctx.beginPath()
+    ctx.strokeStyle = color
+    ctx.moveTo(t[0].x, 300 - t[0].y)
+    ctx.lineTo(t[1].x, 300 - t[1].y)
+    ctx.lineTo(t[2].x, 300 - t[2].y)
+    ctx.lineTo(t[0].x, 300 - t[0].y)
+    ctx.stroke()
+  })
 }
 
 export default {
@@ -74,8 +94,8 @@ export default {
       x: 0,
       y: 0,
       points: [],
-      pointsCount: 16,
-      isDaB: false
+      pointsCount: 8,
+      isDaC: false
     }
   },
   mounted () {
@@ -118,165 +138,163 @@ export default {
       }, [[]])
       ctx.putImageData(buffer, 0, 0)
       points.forEach(async (pointSet, index, arr) => {
-        // Incremental
-        if (!this.isDaB) {
-          // Step 0
-          const mappedPoints = pointSet.map(({ x, y }) => ({ x, y: 300 - y }))
-          if (mappedPoints.length < 3) return
+        drawPoints(ctx, pointSet, '#000', false)
 
-          // Step 1
-          const [p1, p2, p3, ...restPoints] = mappedPoints
-          const triangles = [[p1, p2, p3]]
-          await new Promise(resolve => setTimeout(resolve, 100))
-          // Step 2
-          for (let i = 0; i < restPoints.length; i++) {
-            ctx.fillRect(0, 0, 300, 300)
-            pointSet.forEach(({ x, y }) => {
-              ctx.beginPath()
-              ctx.strokeStyle = '#000'
-              ctx.arc(x, y, 2, 0, 2 * Math.PI)
-              ctx.stroke()
-            })
-            triangles.forEach(triangle => {
-              ctx.beginPath()
-              ctx.moveTo(triangle[0].x, 300 - triangle[0].y)
-              ctx.lineTo(triangle[1].x, 300 - triangle[1].y)
-              ctx.lineTo(triangle[2].x, 300 - triangle[2].y)
-              ctx.lineTo(triangle[0].x, 300 - triangle[0].y)
-              ctx.stroke()
-            })
-            // Step 3
-            const point = restPoints[i]
-            ctx.beginPath()
-            ctx.strokeStyle = '#f00'
-            ctx.arc(point.x, 300 - point.y, 2, 0, 2 * Math.PI)
-            ctx.stroke()
-            const [ triangle ] = triangles
-              .map(points => {
-                const vector = {
-                  x: point.x + points[0].x + points[1].x + points[2].x - 3 * point.x,
-                  y: point.y + points[0].y + points[1].y + points[2].y - 3 * point.y
-                }
-                const distance = Math.sqrt(Math.pow(vector.x - point.x, 2) + Math.pow(vector.y - point.y, 2))
-                console.log('DISTANCE FROM', point, 'TO', vector, distance)
-                return [...points, distance]
-              })
-              .sort((a, b) => a[3] - b[3])
+        // Direct Development
+        if (!this.isDaC) {
+          await this.directDevelopment(ctx, pointSet)
+        } else { // Divide and Conquer
+          const _points = pointSet.map(({ x, y }) => ({ x, y: 300 - y }))
+          const result = [[..._points]]
+          let direction = 'x'
 
-            ctx.beginPath()
-            ctx.strokeStyle = '#0f0'
-            ctx.moveTo(triangle[0].x, 300 - triangle[0].y)
-            ctx.lineTo(triangle[1].x, 300 - triangle[1].y)
-            ctx.lineTo(triangle[2].x, 300 - triangle[2].y)
-            ctx.lineTo(triangle[0].x, 300 - triangle[0].y)
-            ctx.stroke()
-            await new Promise(resolve => setTimeout(resolve, 100))
-
-            const newTriangles = []
-            // Step 4
-            if (triangle.some(intPoint => intPoint.x === point.x && intPoint.y === point.y)) {
-              console.log('NOTHING')
-            } else {
-              const sides = [
-                [triangle[0], triangle[1]],
-                [triangle[1], triangle[2]],
-                [triangle[2], triangle[0]]
-              ]
-              const pointOnSide = sides.find(side => {
-                const k = (side[0].y - side[1].y) / (side[0].x - side[1].x)
-                const b = -k * side[1].x + side[1].y
-                const line = (x) => k * x + b
-                console.log(point.y, line(point.x))
-                return point.y === line(point.x)
-              })
-              console.log(pointOnSide)
-              if (pointOnSide) {
-                const toDelete = []
-                for (let j = 0; j < triangles.length; j++) {
-                  if (
-                    (
-                      (triangles[j][0].x === pointOnSide[0].x && triangles[j][0].y === pointOnSide[0].y) ||
-                      (triangles[j][1].x === pointOnSide[0].x && triangles[j][1].y === pointOnSide[0].y) ||
-                      (triangles[j][2].x === pointOnSide[0].x && triangles[j][2].y === pointOnSide[0].y)
-                    ) && (
-                      (triangles[j][0].x === pointOnSide[1].x && triangles[j][0].y === pointOnSide[1].y) ||
-                      (triangles[j][1].x === pointOnSide[1].x && triangles[j][1].y === pointOnSide[1].y) ||
-                      (triangles[j][2].x === pointOnSide[1].x && triangles[j][2].y === pointOnSide[1].y)
-                    )
-                  ) {
-                    const toChange = [...triangles[j]]
-                    const triangOne = toChange.map(p => {
-                      if (p.x === pointOnSide[0].x && p.y === pointOnSide[0].y) {
-                        return { ...point }
-                      }
-                      return p
-                    })
-                    const triangTwo = toChange.map(p => {
-                      if (p.x === pointOnSide[1].x && p.y === pointOnSide[1].y) {
-                        return { ...point }
-                      }
-                      return p
-                    })
-                    console.log(toChange, triangOne, triangTwo)
-                    toDelete.push(j)
-                    newTriangles.push(triangOne)
-                    newTriangles.push(triangTwo)
-                  }
-                }
-                toDelete.forEach(index => triangles.splice(index, 1))
-              } else if (ptInTriangle(point, triangle[0], triangle[1], triangle[2])) {
-                const index = triangles.findIndex(intTriangle => {
-                  if (
-                    intTriangle[0].x === triangle[0].x &&
-                      intTriangle[1].x === triangle[1].x &&
-                      intTriangle[2].x === triangle[2].x &&
-                      intTriangle[0].y === triangle[0].y &&
-                      intTriangle[1].y === triangle[1].y &&
-                      intTriangle[2].y === triangle[2].y
-                  ) {
-                    newTriangles.push([intTriangle[0], intTriangle[1], point])
-                    newTriangles.push([intTriangle[1], intTriangle[2], point])
-                    newTriangles.push([intTriangle[2], intTriangle[0], point])
-                    return true
-                  }
-                  return false
-                })
-                triangles.splice(index, 1)
-              } else {
-                const pairs = [
-                  [triangle[0], triangle[1]],
-                  [triangle[1], triangle[2]],
-                  [triangle[2], triangle[0]]
-                ]
-                const newTrPoints = pairs.map(p => {
-                  const a = Math.sqrt(Math.pow(point.x - p[0].x, 2) + Math.pow(point.y - p[0].y, 2))
-                  const b = Math.sqrt(Math.pow(point.x - p[1].x, 2) + Math.pow(point.y - p[1].y, 2))
-                  const c = Math.sqrt(Math.pow(p[0].x - p[1].x, 2) + Math.pow(p[0].y - p[1].y, 2))
-
-                  const angle = Math.acos((Math.pow(a, 2) + Math.pow(b, 2) - Math.pow(c, 2)) / (2 * a * b))
-                  return [p[0], p[1], angle]
-                }).sort((a, b) => b[2] - a[2])
-
-                console.log('NEW', point, newTrPoints[0][0], newTrPoints[0][1])
-                newTriangles.push([point, newTrPoints[0][0], newTrPoints[0][1]])
+          let final = []
+          while (result.length) {
+            result.forEach((arr, i) => {
+              if (arr.length <= 5) {
+                final.push([...arr])
+                result.splice(i, 1)
+                return
               }
-            }
-            console.log('NEW TRIANGLES', newTriangles)
-            newTriangles.forEach(triangle => {
-              ctx.beginPath()
-              ctx.strokeStyle = '#00f'
-              ctx.moveTo(triangle[0].x, 300 - triangle[0].y)
-              ctx.lineTo(triangle[1].x, 300 - triangle[1].y)
-              ctx.lineTo(triangle[2].x, 300 - triangle[2].y)
-              ctx.lineTo(triangle[0].x, 300 - triangle[0].y)
-              ctx.stroke()
+
+              const splitted = [[], []]
+              const max = Math.max(...arr.map(p => p[direction]))
+              const min = Math.min(...arr.map(p => p[direction]))
+              const divider = (max + min) / 2
+              arr.forEach(p => {
+                if (p[direction] >= divider) splitted[0].push(p)
+                else splitted[1].push(p)
+              })
+              if (splitted[0].length <= 5) final.push([...splitted[0]])
+              else result.push([...splitted[0]])
+              if (splitted[1].length <= 5) final.push([...splitted[1]])
+              else result.push([...splitted[1]])
+              result.splice(i, 1)
             })
-            // Step 5
-            triangles.push(...newTriangles)
+            direction = direction === 'x' ? 'y' : 'x'
           }
-        } else { // Departments and Boards
+
+          final = await Promise.all(final.map(async ps => {
+            drawPoints(ctx, ps, `#${Math.trunc(Math.random() * 16).toString(16)}${Math.trunc(Math.random() * 9).toString(16)}${Math.trunc(Math.random() * 9).toString(16)}`, true)
+            const data = await this.directDevelopment(ctx, ps.map(({ x, y }) => ({ x, y: 300 - y })))
+            return data
+          }))
+          const globalResult = {
+            triangles: [],
+            usedPoints: []
+          }
+          final.forEach(arr => {
+            if (!arr) return
+            globalResult.usedPoints.push(...arr[0])
+            globalResult.triangles.push(...arr[2])
+          })
+          console.log(globalResult)
+          await this.directDevelopment(ctx, pointSet, [], globalResult.triangles, true)
         }
       })
+    },
+    async directDevelopment (ctx, pointSet, _usedPoints = [], _triangles = [], swap = false) {
+      // Step 1
+      const _lineQueue = [[]]
+
+      const _points = pointSet.map(({ x, y }) => ({ x, y: 300 - y }))
+      if (_points.length < 3) return
+      let sorted = _points.sort((a, b) => a.y - b.y || a.x - b.x)
+      let [pointNow, ...restPoints] = sorted
+      _points.push({...pointNow})
+      _lineQueue[0].push({...pointNow}) // Point one
+
+      restPoints = restPoints.map(({ x, y }) => {
+        const ix = x - pointNow.x
+        const iy = y - pointNow.y
+        let angle = Math.atan2(iy, ix)
+        if (angle < 0) angle = 2 * Math.PI + angle
+        return { x, y, a: angle }
+      }).sort((a, b) => a.a - b.a)
+      pointNow = restPoints.splice(0, 1)[0]
+      _points.push({...pointNow})
+      _lineQueue[0].push({...pointNow}) // Point two
+
+      // Base line ready ---------------------------------------------------
+
+      while (_lineQueue.length !== 0) {
+        // ctx.fillRect(0, 0, 300, 300)
+        drawPoints(ctx, _points, '#000', true)
+        drawTriagles(ctx, _triangles, '#000')
+
+        const line = _lineQueue.splice(0, 1)[0]
+        _usedPoints.push(line[0], line[1])
+
+        const triangle = _triangles.filter(triangle => {
+          return (
+            (triangle[0].x === line[0].x && triangle[0].y === line[0].y) ||
+                (triangle[1].x === line[0].x && triangle[1].y === line[0].y) ||
+                (triangle[2].x === line[0].x && triangle[2].y === line[0].y)
+          ) && (
+            (triangle[0].x === line[1].x && triangle[0].y === line[1].y) ||
+                (triangle[1].x === line[1].x && triangle[1].y === line[1].y) ||
+                (triangle[2].x === line[1].x && triangle[2].y === line[1].y)
+          )
+        })
+
+        let filterFn = () => true
+        drawTriagles(ctx, triangle, '#0f0')
+
+        if (triangle.length > 1) {
+          continue
+        }
+        if (triangle.length === 1) {
+          const k = (line[1].y - line[0].y) / (line[1].x - line[0].x)
+          const b = -k * line[0].x + line[0].y
+          const lineFn = (x) => k * x + b
+
+          const lastPoint = triangle[0].find(p =>
+            !line.some(lp => p.x === lp.x && p.y === lp.y)
+          )
+
+          if (lastPoint && lastPoint.y > lineFn(lastPoint.x)) {
+            filterFn = p => p.y < lineFn(p.x)
+          }
+
+          if (lastPoint && lastPoint.y < lineFn(lastPoint.x)) {
+            filterFn = p => p.y > lineFn(p.x)
+          }
+        }
+
+        const nonLinePoints = _points
+          .filter(filterFn)
+          .filter(p =>
+            !_usedPoints.some(up =>
+              up.x === p.x && up.y === p.y
+            )
+          )
+
+        drawPoints(ctx, nonLinePoints, '#f0f', true)
+        drawLine(ctx, line, '#f00')
+
+        if (nonLinePoints.length > 0) {
+          const nonLinePointsWithAngle = nonLinePoints.map(p => {
+            const a = Math.sqrt(Math.pow(p.x - line[0].x, 2) + Math.pow(p.y - line[0].y, 2))
+            const b = Math.sqrt(Math.pow(p.x - line[1].x, 2) + Math.pow(p.y - line[1].y, 2))
+            const c = Math.sqrt(Math.pow(line[0].x - line[1].x, 2) + Math.pow(line[0].y - line[1].y, 2))
+
+            const angle = Math.acos((Math.pow(a, 2) + Math.pow(b, 2) - Math.pow(c, 2)) / (2 * a * b))
+            return { ...p, a: angle }
+          }).sort((a, b) => b.a - a.a)
+
+          const bestNewPoint = nonLinePointsWithAngle[0]
+          _lineQueue.push([line[0], bestNewPoint])
+          _lineQueue.push([bestNewPoint, line[1]])
+
+          // const newTriangle = [...line, bestNewPoint]
+
+          _triangles.push([...line, bestNewPoint])
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 100))
+        // await new Promise(resolve => document.addEventListener('click', resolve))
+      }
+      return [_usedPoints, _lineQueue, _triangles]
     }
   }
 }
