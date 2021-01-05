@@ -191,11 +191,9 @@ async function Triangulate (points, maxEdges, ctx, color, activeEdges = new Tupl
   let _b = points.arr
     .filter(p1 => !isEqualPoints(p1, _a))
     .map(p1 => {
-      // console.log(p1, _a, _startVector, Vector.Between(_a, p1), Vector.CosBetween(_startVector, Vector.Between(_a, p1)))
       return { ...p1, cos: Vector.CosBetween(_startVector, Vector.Between(_a, p1)) }
     })
     .sort((p1, p2) => p2.cos - p1.cos)[0]
-  console.log(points.arr)
 
   activeEdges.Add([_a, _b])
 
@@ -299,8 +297,7 @@ export default {
           pointSet.Add({ x: p1.x, y: 300 - p1.y })
           DrawDiamond(ctx, p1)
         })
-        const triangulation = await Triangulate(pointSet, maxEdges, ctx, '#000')
-        console.log(ctx, triangulation)
+        await Triangulate(pointSet, maxEdges, ctx, '#000')
       } else {
         const _points = this.points.arr
         const result = [[..._points]]
@@ -346,6 +343,7 @@ export default {
         ctx.fillRect(0, 0, 300, 300)
         const triangulation = new TupleSet()
         finalTr.forEach(([t, c]) => {
+          if (!t) return
           t.arr.forEach(edge => {
             if (!triangulation.Contains(edge)) triangulation.Add(edge)
           })
@@ -360,8 +358,8 @@ export default {
         const tr = await Triangulate(pointSet, maxEdges, ctx, '#000', new TupleSet(), false)
         const oldDiff = []
         finalTr.forEach(([t, c]) => {
+          if (!t) return
           t.arr.forEach(edge => {
-            console.log(edge, tr.Contains(edge))
             if (tr.Contains(edge)) oldDiff.push([edge, c])
           })
         })
