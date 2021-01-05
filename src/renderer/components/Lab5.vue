@@ -29,7 +29,7 @@
             </div>
             <button class="btn btn-primary" @click="points = []; draw()">Clear all</button>
             <button class="btn btn-primary" @click="breakLine(); draw()">Break line</button>
-            <button class="btn btn-primary" @click="isFast = !isFast; draw()">{{ isFast ? 'Switch to Jarvis' : 'Switch to Fast'}}</button>
+            <button class="btn btn-primary" @click="isFast = !isFast; draw()">{{ isFast ? 'Switch to Jarvis' : 'Switch to Fast Shell'}}</button>
             <hr>
             <ul class="list-group">
               <li v-for="(point, index) in points" :key="point.x.toString() + point.y.toString()" class="list-group-item">
